@@ -121,8 +121,8 @@ int main( int argc, char **argv )
     float fps = 0.f;
     float gamma = 1.0;
     float sobelFactor = 0;
-    int blurSampleCount = 0;
-    glm::vec3 focus(3.5,4.5,5.5);
+    int blurSampleCount = 5;
+    glm::vec3 focus(7,7.857,8.25);
     glm::vec3 spotPos(0.0,10.0,0.0);
 
 
@@ -191,9 +191,7 @@ int main( int argc, char **argv )
     GUIStates guiStates;
     init_gui_states(guiStates);
     int instanceCount = 0;
-    float pointLightCount = 1;
-    float directionalLightCount = 1;
-    int spotLightCount = 9;
+    int spotLightCount = 14;
     float speed = 1.0;
     float scaleFactor=0.01f;
 
@@ -950,18 +948,22 @@ int main( int argc, char **argv )
         glm::mat4 translate = glm::translate(glm::mat4(), glm::vec3(-1,-3.5,0.4));
         glm::mat4 rotate = glm::rotate(glm::mat4(),0.0f, glm::vec3(0,1,0));
 
-        if(t>2 && t<10){
-            instanceCount = (t-2) * 125;
-        }else if(t > 2 && t < 30) {
-            instanceCount = glm::max(1000 - ((t-2) * 50), 0.0);
+        float flowerRisingTime  = 15.f;
+        float flowerUpTime  = 30.f;
+        float waterStart = 5.f;
+        float waterEnd = 10.f;
+
+        if(t>waterStart && t<waterEnd){
+            instanceCount = (t-waterStart) * 125;
+        }else if(t > waterStart && t < flowerUpTime) {
+            instanceCount = glm::max(1000 - ((t-waterStart) * 50), 0.0);
         }
-        if(t > 15 && t < 30){
+        if(t > flowerRisingTime && t < flowerUpTime){
 
             translate = glm::translate(glm::mat4(), glm::vec3(-1.0,(5.5 / 15.0) * t -9, 0.4));
             rotate = glm::rotate(glm::mat4(),(float)t, glm::vec3(0,1,0));
         }
-
-        if(t > 30){
+        if(t > flowerUpTime){
             translate = glm::translate(glm::mat4(), glm::vec3(-1.0,2, 0.4));
             rotate = glm::rotate(glm::mat4(), 30.f , glm::vec3(0,1,0));
         }
@@ -1047,12 +1049,60 @@ int main( int argc, char **argv )
                 color = glm::vec3(1.0, 1.0, 1.0);
             } else if(i < 9){
                 int idx = i-3;
-                iF = glm::min(25.0,t*12.5-12*i);
+                iF = glm::max(glm::min(25.0,t*20-6*i),0.0);
                 lp = glm::vec3((idx - 3)*2, 3.f, cos(idx*idx)*2);
                 ld = glm::vec3(sinf(50*i)*0.2,-1.f,sinf(10*i)*0.15);
                 angle = 30.f + cos(i*i)*10.f;
                 penumbraAngle = angle + 10.f;
                 color = glm::vec3(0.1 + cosf(50*idx)*0.25, 0.3 + cosf(idx*idx)*0.2, 0.7 + cosf(idx)*0.3);
+            } else if (i == 9){
+                iF = 0;
+                angle = 0.f;
+
+                if(t < flowerRisingTime || t > flowerUpTime +3){
+                    iF = 0;
+                    angle = 0;
+                }
+                else if(t < flowerRisingTime +2){
+                    iF = (t - flowerRisingTime) * 15.f / 2.f;
+                    angle = (t - flowerRisingTime) * 30.f / 2.f;
+                }else if (t < flowerUpTime -3){
+                    iF = 15.f;
+                    angle = 30;
+                }else{
+                    iF = (flowerUpTime +3 - t)* 15.f /6.f;
+                    angle = (flowerUpTime +3 - t)* 30.f /6.f;
+                }
+
+
+                lp = glm::vec3(0,6.f,0);
+                ld = glm::vec3(0,-1.f,0);
+                //angle = 30.f;
+                penumbraAngle = angle*1.1f;
+                color = glm::vec3(1,1,1);
+            }else if (i < spotLightCount){
+                int idx = i -10;
+                int nbStar = spotLightCount-10;
+
+                iF = 0.f;
+                if(t < waterStart-2){
+                    iF = 0;
+                    angle = 0;
+                }
+                else if(t < waterStart){
+                    iF = (t - waterStart+2) * 50.f/2.f;
+                    angle = (t - waterStart+2) * 40.f/2.f;
+                }else{
+                    iF = 50.f;
+                    angle = 40;
+                }
+
+                lp = glm::vec3(6*cosf(2*M_PI/nbStar*idx + t), 12.f, 6*sinf(2*M_PI/nbStar*idx + t));
+                ld = glm::vec3(cosf(2*M_PI/nbStar*idx + t)*0.2*cosf(t*nbStar),
+                         -1.0, sinf(2*M_PI/nbStar*idx + t)*0.2*cosf(t*nbStar));
+                //angle = 40.f;
+                penumbraAngle = angle * 1.5;
+                color = glm::vec3(1.0, 1.0, 1.0); 
             }
 
 
@@ -1345,6 +1395,9 @@ int main( int argc, char **argv )
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
+            ImGui::Text("Phi %.1f; theta %.1f", camera.phi, camera.theta);
+
+
             ImGui::End();
             ImGui::Render();
         }
@@ -1513,8 +1566,8 @@ void camera_compute(Camera & c)
 
 void camera_defaults(Camera & c)
 {
-    c.phi = 3.14/2.f;
-    c.theta = 3.14/2.f;
+    c.phi = 1.0;
+    c.theta = 2.3;
     c.radius = 10.f;
     camera_compute(c);
 }
