@@ -114,7 +114,6 @@ struct SpotLight
 int main( int argc, char **argv )
 {
 
-
     int width = 1024, height= 768;
     float widthf = (float) width, heightf = (float) height;
     double t;
@@ -191,7 +190,7 @@ int main( int argc, char **argv )
     GUIStates guiStates;
     init_gui_states(guiStates);
     int instanceCount = 0;
-    int spotLightCount = 14;
+    int spotLightCount = 20;
     float speed = 1.0;
     float scaleFactor=0.01f;
 
@@ -406,7 +405,7 @@ int main( int argc, char **argv )
 
     const aiScene* scene = NULL;
     GLuint scene_list = 0;
-    char* objPath = "/home/juliette/Programmation_compilation/open_gl_project/flower/StrangeFlower.obj";
+    char* objPath = "../flower/StrangeFlower.obj";
 
     scene = aiImportFile(objPath, aiProcessPreset_TargetRealtime_MaxQuality);
 
@@ -613,7 +612,7 @@ int main( int argc, char **argv )
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     // Update and bind uniform buffer object
-    const int SPOT_LIGHT_COUNT = 16;
+    const int SPOT_LIGHT_COUNT = 20;
     GLuint ubo[1];
     glGenBuffers(1, ubo);
     glBindBuffer(GL_UNIFORM_BUFFER, ubo[0]);
@@ -751,8 +750,6 @@ int main( int argc, char **argv )
         exit( EXIT_FAILURE );
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-
 
     do
     {
@@ -1029,7 +1026,7 @@ int main( int argc, char **argv )
                 penumbraAngle = angle*1.1f;
                 color = glm::vec3(1,1,1);
             }else if (i < spotLightCount){
-                int idx = i -10;
+                int idx = i - 10;
                 int nbStar = spotLightCount-10;
 
                 iF = 0.f;
@@ -1038,19 +1035,19 @@ int main( int argc, char **argv )
                     angle = 0;
                 }
                 else if(t < waterStart){
-                    iF = (t - waterStart+2) * 50.f/2.f;
-                    angle = (t - waterStart+2) * 40.f/2.f;
+                    iF = (t - waterStart+2) * 75.f/2.f;
+                    angle = (t - waterStart+2) * 10.f/2.f;
                 }else{
-                    iF = 50.f;
-                    angle = 40;
+                    iF = 75.f;
+                    angle = 10;
                 }
 
-                lp = glm::vec3(6*cosf(2*M_PI/nbStar*idx + t), 12.f, 6*sinf(2*M_PI/nbStar*idx + t));
-                ld = glm::vec3(cosf(2*M_PI/nbStar*idx + t)*0.2*cosf(t*5+idx),
-                         -1.0, sinf(2*M_PI/nbStar*idx + t)*0.2*cosf(t*5+idx));
+                lp = glm::vec3(6*cosf(2*M_PI/nbStar*idx + t), 15.f, 6*sinf(2*M_PI/nbStar*idx + t));
+                ld = glm::vec3(cosf(2*M_PI/nbStar*idx + t)*0.2*cosf(t*(3.5 + (float)idx / (nbStar * 2)) +idx*i),
+                         -1.0, sinf(2*M_PI/nbStar*idx + t)*0.2*cosf(t*(3.5 + (float)idx / (nbStar * 2)) +idx*i));
                 //angle = 40.f;
-                penumbraAngle = angle * 1.5;
-                color = glm::vec3(1.0, 1.0, 1.0); 
+                penumbraAngle = angle * 1.2;
+                color = glm::vec3(cosf(i*idx), cosf(i*i), cosf(idx*idx)); 
             }
 
 
@@ -1217,9 +1214,9 @@ int main( int argc, char **argv )
         if(blurSampleCount)
             glBindTexture(GL_TEXTURE_2D, fxTextures[3]);
         else
-            glBindTexture(GL_TEXTURE_2D, fxTextures[1]);
+            glBindTexture(GL_TEXTURE_2D, fxTextures[0]);
         //select the texture to write in
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fxTextures[0], 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fxTextures[1], 0);
         //clear the buffer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -1228,7 +1225,7 @@ int main( int argc, char **argv )
 
         if(blackFade){
             glUseProgram(FadeProgramObject);
-            glBindTexture(GL_TEXTURE_2D, fxTextures[0]);
+            glBindTexture(GL_TEXTURE_2D, fxTextures[1]);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fxTextures[3], 0);
             //clear the buffer
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1251,7 +1248,7 @@ int main( int argc, char **argv )
         if(blackFade)
             glBindTexture(GL_TEXTURE_2D, fxTextures[3]);
         else
-            glBindTexture(GL_TEXTURE_2D, fxTextures[0]);
+            glBindTexture(GL_TEXTURE_2D, fxTextures[1]);
         glDrawElements(GL_TRIANGLES, quad_triangleCount * 3, GL_UNSIGNED_INT, (void*)0);
 
         glDisable(GL_BLEND);
