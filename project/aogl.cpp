@@ -910,8 +910,8 @@ int main( int argc, char **argv )
         glm::mat4 translate = glm::translate(glm::mat4(), glm::vec3(-1,-3.5,0.4));
         glm::mat4 rotate = glm::rotate(glm::mat4(),0.0f, glm::vec3(0,1,0));
 
-        float flowerRisingTime  = 15.f;
-        float flowerUpTime  = 30.f;
+        float flowerRisingTime  = 10.f;
+        float flowerUpTime  = 20.f;
         float waterStart = 5.f;
         float waterEnd = 10.f;
 
@@ -921,13 +921,13 @@ int main( int argc, char **argv )
             instanceCount = glm::max(1000 - ((t-waterStart) * 50), 0.0);
         }
         if(t > flowerRisingTime && t < flowerUpTime){
-
-            translate = glm::translate(glm::mat4(), glm::vec3(-1.0,(5.5 / 15.0) * t -9, 0.4));
+			float a = 5.5 / (flowerUpTime - flowerRisingTime);
+            translate = glm::translate(glm::mat4(), glm::vec3(-1.0, a * t -(a*flowerRisingTime+3.5), 0.4));
             rotate = glm::rotate(glm::mat4(),(float)t, glm::vec3(0,1,0));
         }
         if(t > flowerUpTime){
             translate = glm::translate(glm::mat4(), glm::vec3(-1.0,2, 0.4));
-            rotate = glm::rotate(glm::mat4(), 30.f , glm::vec3(0,1,0));
+            rotate = glm::rotate(glm::mat4(), flowerUpTime , glm::vec3(0,1,0));
         }
 
         for (GLuint i =0; i < scene->mNumMeshes; ++i)
