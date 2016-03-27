@@ -114,15 +114,14 @@ struct SpotLight
 int main( int argc, char **argv )
 {
 
-
     int width = 1024, height= 768;
     float widthf = (float) width, heightf = (float) height;
     double t;
-    float fps = 0.f;
+    bool blackFade = false;
+    //float fps = 0.f;
     float gamma = 1.0;
-    float sobelFactor = 0;
-    int blurSampleCount = 0;
-    glm::vec3 focus(3.5,4.5,5.5);
+    int blurSampleCount = 5;
+    glm::vec3 focus(7,7.857,8.25);
     glm::vec3 spotPos(0.0,10.0,0.0);
 
 
@@ -191,9 +190,7 @@ int main( int argc, char **argv )
     GUIStates guiStates;
     init_gui_states(guiStates);
     int instanceCount = 0;
-    float pointLightCount = 1;
-    float directionalLightCount = 1;
-    int spotLightCount = 9;
+    int spotLightCount = 20;
     float speed = 1.0;
     float scaleFactor=0.01f;
 
@@ -282,24 +279,6 @@ int main( int argc, char **argv )
     if (check_link_error(shadowProgramObject) < 0)
         exit(1);
 
-    // Try to load and compile pointlight shaders
-    GLuint fragpointlightShaderId = compile_shader_from_file(GL_FRAGMENT_SHADER, "pointlight.frag");
-    GLuint pointlightProgramObject = glCreateProgram();
-    glAttachShader(pointlightProgramObject, vertBlitShaderId);
-    glAttachShader(pointlightProgramObject, fragpointlightShaderId);
-    glLinkProgram(pointlightProgramObject);
-    if (check_link_error(pointlightProgramObject) < 0)
-        exit(1);
-
-    // Try to load and compile directionallight shaders
-    GLuint fragdirectionallightShaderId = compile_shader_from_file(GL_FRAGMENT_SHADER, "directionallight.frag");
-    GLuint directionallightProgramObject = glCreateProgram();
-    glAttachShader(directionallightProgramObject, vertBlitShaderId);
-    glAttachShader(directionallightProgramObject, fragdirectionallightShaderId);
-    glLinkProgram(directionallightProgramObject);
-    if (check_link_error(directionallightProgramObject) < 0)
-        exit(1);
-
     // Try to load and compile spotlight shaders
     GLuint fragspotlightShaderId = compile_shader_from_file(GL_FRAGMENT_SHADER, "spotlight.frag");
     GLuint spotlightProgramObject = glCreateProgram();
@@ -316,15 +295,6 @@ int main( int argc, char **argv )
     glAttachShader(gammaProgramObject, fragGammaId);
     glLinkProgram(gammaProgramObject);
     if (check_link_error(gammaProgramObject) < 0)
-        exit(1);
-
-    // Try to load and compile sobel shaders
-    GLuint fragSobelId = compile_shader_from_file(GL_FRAGMENT_SHADER, "sobel.frag");
-    GLuint sobelProgramObject = glCreateProgram();
-    glAttachShader(sobelProgramObject, vertBlitShaderId);
-    glAttachShader(sobelProgramObject, fragSobelId);
-    glLinkProgram(sobelProgramObject);
-    if (check_link_error(sobelProgramObject) < 0)
         exit(1);
 
     // Try to load and compile blur shaders
@@ -354,6 +324,14 @@ int main( int argc, char **argv )
     if (check_link_error(DoFProgramObject) < 0)
         exit(1);
 
+    // Try to load and compile our fade to black shader
+    GLuint fragFadeId = compile_shader_from_file(GL_FRAGMENT_SHADER, "Fade.frag");
+    GLuint FadeProgramObject = glCreateProgram();
+    glAttachShader(FadeProgramObject, vertBlitShaderId);
+    glAttachShader(FadeProgramObject, fragFadeId);
+    glLinkProgram(FadeProgramObject);
+    if (check_link_error(FadeProgramObject) < 0)
+        exit(1);
 
     // Upload uniforms
 
@@ -367,24 +345,6 @@ int main( int argc, char **argv )
     GLuint instanceCountLocation = glGetUniformLocation(gbufferProgramObject, "InstanceCount");
     GLuint blitTextureLocation = glGetUniformLocation(blitProgramObject, "Texture");
     glProgramUniform1i(blitProgramObject, blitTextureLocation, 0);
- 
-    GLuint pointlightColorLocation = glGetUniformLocation(pointlightProgramObject, "ColorBuffer");
-    GLuint pointlightNormalLocation = glGetUniformLocation(pointlightProgramObject, "NormalBuffer");
-    GLuint pointlightDepthLocation = glGetUniformLocation(pointlightProgramObject, "DepthBuffer");
-    GLuint pointlightLightLocation = glGetUniformBlockIndex(pointlightProgramObject, "light");
-    GLuint pointInverseProjectionLocation = glGetUniformLocation(pointlightProgramObject, "InverseProjection");
-    glProgramUniform1i(pointlightProgramObject, pointlightColorLocation, 0);
-    glProgramUniform1i(pointlightProgramObject, pointlightNormalLocation, 1);
-    glProgramUniform1i(pointlightProgramObject, pointlightDepthLocation, 2);
-
-    GLuint directionallightColorLocation = glGetUniformLocation(directionallightProgramObject, "ColorBuffer");
-    GLuint directionallightNormalLocation = glGetUniformLocation(directionallightProgramObject, "NormalBuffer");
-    GLuint directionallightDepthLocation = glGetUniformLocation(directionallightProgramObject, "DepthBuffer");
-    GLuint directionallightLightLocation = glGetUniformBlockIndex(directionallightProgramObject, "light");
-    GLuint directionalInverseProjectionLocation = glGetUniformLocation(directionallightProgramObject, "InverseProjection");
-    glProgramUniform1i(directionallightProgramObject, directionallightColorLocation, 0);
-    glProgramUniform1i(directionallightProgramObject, directionallightNormalLocation, 1);
-    glProgramUniform1i(directionallightProgramObject, directionallightDepthLocation, 2);
 
     GLuint spotlightColorLocation = glGetUniformLocation(spotlightProgramObject, "ColorBuffer");
     GLuint spotlightNormalLocation = glGetUniformLocation(spotlightProgramObject, "NormalBuffer");
@@ -400,7 +360,6 @@ int main( int argc, char **argv )
     glProgramUniform1i(spotlightProgramObject, spotlightDepthLocation, 2);
     glProgramUniform1i(spotlightProgramObject, spotlightShadowLocation, 3);
 
-
     GLuint shadowMVPLocation = glGetUniformLocation(shadowProgramObject, "MVP");
     GLuint shadowMVLocation = glGetUniformLocation(shadowProgramObject, "MV");
     GLuint shadowTimeLocation = glGetUniformLocation(shadowProgramObject, "Time");
@@ -410,9 +369,6 @@ int main( int argc, char **argv )
     GLuint gammaLocation = glGetUniformLocation(gammaProgramObject, "Gamma");
     GLuint gammaTextureLocation = glGetUniformLocation(gammaProgramObject, "Texture");
     glProgramUniform1i(gammaProgramObject, gammaTextureLocation, 0);
-
-    //sobel
-    GLuint sobelFactorLocation = glGetUniformLocation(sobelProgramObject, "Factor");
 
     //blur
     GLuint blurSampleCountLocation = glGetUniformLocation(blurProgramObject, "SampleCount");
@@ -434,6 +390,12 @@ int main( int argc, char **argv )
     GLuint DoFCoCLocation = glGetUniformLocation(DoFProgramObject, "CoC");
     glProgramUniform1i(DoFProgramObject, DoFCoCLocation, 1);
 
+    //Fade
+    GLuint FadeTimeLocation = glGetUniformLocation(FadeProgramObject, "t");
+    GLuint FadeStartTimeLocation = glGetUniformLocation(FadeProgramObject, "startTime");
+    GLuint FadeColorLocation = glGetUniformLocation(FadeProgramObject, "Color");
+    glProgramUniform1i(FadeProgramObject, FadeColorLocation, 0);
+
    if (!checkError("Uniforms"))
         exit(1);
 
@@ -443,7 +405,7 @@ int main( int argc, char **argv )
 
     const aiScene* scene = NULL;
     GLuint scene_list = 0;
-    char* objPath = "/home/juliette/Programmation_compilation/open_gl_project/flower/StrangeFlower.obj";
+    char* objPath = "../flower/StrangeFlower.obj";
 
     scene = aiImportFile(objPath, aiProcessPreset_TargetRealtime_MaxQuality);
 
@@ -463,11 +425,11 @@ int main( int argc, char **argv )
     float * assimp_diffuse_colors = new float[scene->mNumMeshes*3];
     GLuint * assimp_diffuse_texture_ids = new GLuint[scene->mNumMeshes*3];
 
-    for (int i =0; i < scene->mNumMeshes; ++i)
+    for (GLuint i = 0; i < scene->mNumMeshes; ++i)
     {
         const aiMesh* m = scene->mMeshes[i];
         GLuint * faces = new GLuint[m->mNumFaces*3];
-        for (int j = 0; j < m->mNumFaces; ++j)
+        for (GLuint j = 0; j < m->mNumFaces; ++j)
         {
             const aiFace& f = m->mFaces[j];
             faces[j*3] = f.mIndices[0];
@@ -550,9 +512,8 @@ int main( int argc, char **argv )
     while(stack.size()>0)
     {
         aiNode * node = stack.top();
-        for (int i =0; i < node->mNumMeshes; ++i)
+        for (GLuint i =0; i < node->mNumMeshes; ++i)
         {
-            unsigned int mId = node->mMeshes[i];
             aiMatrix4x4 t = node->mTransformation;
             assimp_objectToWorld[i] = glm::mat4(t.a1, t.a2, t.a3, t.a4,
                                                 t.b1, t.b2, t.b3, t.b4,
@@ -651,7 +612,7 @@ int main( int argc, char **argv )
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     // Update and bind uniform buffer object
-    const int SPOT_LIGHT_COUNT = 16;
+    const int SPOT_LIGHT_COUNT = 20;
     GLuint ubo[1];
     glGenBuffers(1, ubo);
     glBindBuffer(GL_UNIFORM_BUFFER, ubo[0]);
@@ -790,8 +751,6 @@ int main( int argc, char **argv )
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-
-
     do
     {
         t = glfwGetTime() * speed;
@@ -859,6 +818,10 @@ int main( int argc, char **argv )
             guiStates.display = ! guiStates.display;
         if (glfwGetKey(window, GLFW_KEY_B))
             guiStates.blit = ! guiStates.blit;
+        if (!blackFade && glfwGetKey(window, GLFW_KEY_SPACE)){
+            blackFade = true;
+            glProgramUniform1f(FadeProgramObject, FadeStartTimeLocation, t);
+        }
 
         // Default states
         glEnable(GL_DEPTH_TEST);
@@ -899,17 +862,14 @@ int main( int argc, char **argv )
         glProgramUniform1i(gbufferProgramObject, instanceCountLocation, (int) instanceCount);
         glProgramUniform1f(gbufferProgramObject, specularPowerLocation, 5.f);
         glProgramUniform1f(gbufferProgramObject, timeLocation, t);
+        glProgramUniform1f(FadeProgramObject, FadeTimeLocation, t);
         glProgramUniform1i(gbufferProgramObject, diffuseLocation, 0);
         glProgramUniform1i(gbufferProgramObject, specLocation, 1);
-        glProgramUniformMatrix4fv(pointlightProgramObject, pointInverseProjectionLocation, 1, 0, glm::value_ptr(inverseProjection));
-        glProgramUniformMatrix4fv(directionallightProgramObject, directionalInverseProjectionLocation, 1, 0, glm::value_ptr(inverseProjection));
         glProgramUniformMatrix4fv(spotlightProgramObject, spotInverseProjectionLocation, 1, 0, glm::value_ptr(inverseProjection));
         glProgramUniform1i(shadowProgramObject, shadowInstanceCountLocation, (int) instanceCount);
         glProgramUniform1f(gammaProgramObject, gammaLocation, gamma);
-        glProgramUniform1f(sobelProgramObject, sobelFactorLocation, sobelFactor);
         glProgramUniformMatrix4fv(COCProgramObject,COCScreenToViewLocation, 1, 0, glm::value_ptr(inverseProjection));
         glProgramUniform3f(COCProgramObject,COCFocusLocation,focus.x,focus.y,focus.z);
-
         glProgramUniform1i(spotlightProgramObject, spotShadowSampleCountLocation, shadowSampleCount);
         glProgramUniform1f(spotlightProgramObject, spotShadowSpreadLocation, shadowSpread);
 
@@ -950,23 +910,27 @@ int main( int argc, char **argv )
         glm::mat4 translate = glm::translate(glm::mat4(), glm::vec3(-1,-3.5,0.4));
         glm::mat4 rotate = glm::rotate(glm::mat4(),0.0f, glm::vec3(0,1,0));
 
-        if(t>2 && t<10){
-            instanceCount = (t-2) * 125;
-        }else if(t > 2 && t < 30) {
-            instanceCount = glm::max(1000 - ((t-2) * 50), 0.0);
-        }
-        if(t > 15 && t < 30){
+        float flowerRisingTime  = 10.f;
+        float flowerUpTime  = 20.f;
+        float waterStart = 5.f;
+        float waterEnd = 10.f;
 
-            translate = glm::translate(glm::mat4(), glm::vec3(-1.0,(5.5 / 15.0) * t -9, 0.4));
+        if(t>waterStart && t<waterEnd){
+            instanceCount = (t-waterStart) * 125;
+        }else if(t > waterStart && t < flowerUpTime) {
+            instanceCount = glm::max(1000 - ((t-waterStart) * 50), 0.0);
+        }
+        if(t > flowerRisingTime && t < flowerUpTime){
+			float a = 5.5 / (flowerUpTime - flowerRisingTime);
+            translate = glm::translate(glm::mat4(), glm::vec3(-1.0, a * t -(a*flowerRisingTime+3.5), 0.4));
             rotate = glm::rotate(glm::mat4(),(float)t, glm::vec3(0,1,0));
         }
-
-        if(t > 30){
+        if(t > flowerUpTime){
             translate = glm::translate(glm::mat4(), glm::vec3(-1.0,2, 0.4));
-            rotate = glm::rotate(glm::mat4(), 30.f , glm::vec3(0,1,0));
+            rotate = glm::rotate(glm::mat4(), flowerUpTime , glm::vec3(0,1,0));
         }
 
-        for (int i =0; i < scene->mNumMeshes; ++i)
+        for (GLuint i =0; i < scene->mNumMeshes; ++i)
         {
             subIndex = 1;
             if (assimp_diffuse_texture_ids[i] > 0) {
@@ -1003,16 +967,7 @@ int main( int argc, char **argv )
         for (int i = 0; i < spotLightCount; ++i)
         {
             // Setup light data
-#if 0                
-           //Spotlights se balançant en cercle
-
-            float iF = 50.f;
-            glm::vec3 lp(6*cosf(2*M_PI/spotLightCount*i + t), 8.f, 6*sinf(2*M_PI/spotLightCount*i + t));
-            glm::vec3 ld(cosf(2*M_PI/spotLightCount*i + t)*0.2*cosf(t*5), -1.0, sinf(2*M_PI/spotLightCount*i + t)*0.2*cosf(t*5));
-            float angle = 40.f;
-            float penumbraAngle = 40.f + 20.f;
-            glm::vec3 color(1.0, 1.0, 1.0); 
-
+#if 0                 
             //Spotlights tournant et pointant le centre
 
             float iF = 40.f;
@@ -1022,14 +977,6 @@ int main( int argc, char **argv )
             float penumbraAngle = angle + 10.f;
             glm::vec3 color(1.0, 1.0, 1.0);
 
-            //Test tout pourri
-
-            // float iF = 50.f;
-            // glm::vec3 lp(spotPos.x, spotPos.y, spotPos.z);
-            // glm::vec3 ld(0, -1, 0);
-            // float angle = 40.f;
-            // float penumbraAngle = angle + 10.f;
-            // glm::vec3 color(1.0, 1.0, 1.0); 
 #else
             float iF;
             glm::vec3 lp;
@@ -1047,12 +994,60 @@ int main( int argc, char **argv )
                 color = glm::vec3(1.0, 1.0, 1.0);
             } else if(i < 9){
                 int idx = i-3;
-                iF = glm::min(25.0,t*12.5-12*i);
+                iF = glm::max(glm::min(25.0,t*20-6*i),0.0);
                 lp = glm::vec3((idx - 3)*2, 3.f, cos(idx*idx)*2);
                 ld = glm::vec3(sinf(50*i)*0.2,-1.f,sinf(10*i)*0.15);
                 angle = 30.f + cos(i*i)*10.f;
                 penumbraAngle = angle + 10.f;
                 color = glm::vec3(0.1 + cosf(50*idx)*0.25, 0.3 + cosf(idx*idx)*0.2, 0.7 + cosf(idx)*0.3);
+            } else if (i == 9){
+                iF = 0;
+                angle = 0.f;
+
+                if(t < flowerRisingTime || t > flowerUpTime +3){
+                    iF = 0;
+                    angle = 0;
+                }
+                else if(t < flowerRisingTime +2){
+                    iF = (t - flowerRisingTime) * 15.f / 2.f;
+                    angle = (t - flowerRisingTime) * 30.f / 2.f;
+                }else if (t < flowerUpTime -3){
+                    iF = 15.f;
+                    angle = 30;
+                }else{
+                    iF = (flowerUpTime +3 - t)* 15.f /6.f;
+                    angle = (flowerUpTime +3 - t)* 30.f /6.f;
+                }
+
+
+                lp = glm::vec3(0,6.f,0);
+                ld = glm::vec3(0,-1.f,0);
+                //angle = 30.f;
+                penumbraAngle = angle*1.1f;
+                color = glm::vec3(1,1,1);
+            }else if (i < spotLightCount){
+                int idx = i - 10;
+                int nbStar = spotLightCount-10;
+
+                iF = 0.f;
+                if(t < waterStart-2){
+                    iF = 0;
+                    angle = 0;
+                }
+                else if(t < waterStart){
+                    iF = (t - waterStart+2) * 75.f/2.f;
+                    angle = (t - waterStart+2) * 10.f/2.f;
+                }else{
+                    iF = 75.f;
+                    angle = 10;
+                }
+
+                lp = glm::vec3(6*cosf(2*M_PI/nbStar*idx + t), 15.f, 6*sinf(2*M_PI/nbStar*idx + t));
+                ld = glm::vec3(cosf(2*M_PI/nbStar*idx + t)*0.2*cosf(t*(3.5 + (float)idx / (nbStar * 2)) +idx*i),
+                         -1.0, sinf(2*M_PI/nbStar*idx + t)*0.2*cosf(t*(3.5 + (float)idx / (nbStar * 2)) +idx*i));
+                //angle = 40.f;
+                penumbraAngle = angle * 1.2;
+                color = glm::vec3(cosf(i*idx), cosf(i*i), cosf(idx*idx)); 
             }
 
 
@@ -1070,7 +1065,6 @@ int main( int argc, char **argv )
                 projection * worldToLight * glm::inverse(worldToView)
             };
             *((SpotLight *) (spotLightBuffer + i * uboSize)) = s;
-            //std::cout << glm::to_string(worldToLight) << std::endl;
             // Attach shadow texture for current light
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowTextures[i], 0);
             // Clear only the depth buffer
@@ -1085,7 +1079,7 @@ int main( int argc, char **argv )
             // Render assimp vaos
             glActiveTexture(GL_TEXTURE0);
             glm::mat4 scale = glm::scale(glm::mat4(), glm::vec3(scaleFactor)); 
-            for (int i =0; i < scene->mNumMeshes; ++i)
+            for (GLuint i =0; i < scene->mNumMeshes; ++i)
             {
                 mv = worldToLight * rotate * translate * scale * assimp_objectToWorld[i];
                 mvp = projection * mv;
@@ -1149,16 +1143,6 @@ int main( int argc, char **argv )
             glDrawElements(GL_TRIANGLES, quad_triangleCount * 3, GL_UNSIGNED_INT, (void*)0);
         }
 
-        /* -------------- SOBEL -------------- */
-
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 , GL_TEXTURE_2D, fxTextures[1], 0);
-        glClear(GL_COLOR_BUFFER_BIT);
-        // Bind the quad vao if not already bound
-        glUseProgram(sobelProgramObject);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, fxTextures[0]);
-        glDrawElements(GL_TRIANGLES, quad_triangleCount * 3, GL_UNSIGNED_INT, (void*)0);
-
         /* -------------- BASIC BLUR -------------- */
 
         if(blurSampleCount){
@@ -1171,23 +1155,22 @@ int main( int argc, char **argv )
 
 
             // Write into Vertical Blur Texture
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 , GL_TEXTURE_2D, fxTextures[2], 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 , GL_TEXTURE_2D, fxTextures[1], 0);
             // Clear the content of texture
             glClear(GL_COLOR_BUFFER_BIT);
             glActiveTexture(GL_TEXTURE0);
-            // Read the texture processed by the Sobel operator
-            glBindTexture(GL_TEXTURE_2D,fxTextures[1] );
+            glBindTexture(GL_TEXTURE_2D,fxTextures[0] );
             glDrawElements(GL_TRIANGLES, quad_triangleCount * 3, GL_UNSIGNED_INT, (void*)0);
 
             //upload uniform
             glProgramUniform2i(blurProgramObject, blurDirectionLocation, 1, 0);
             // Write into Horizontal Blur Texture
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 , GL_TEXTURE_2D, fxTextures[0] , 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 , GL_TEXTURE_2D, fxTextures[2] , 0);
             // Clear the content of texture
             glClear(GL_COLOR_BUFFER_BIT);
             glActiveTexture(GL_TEXTURE0);
             // Read the texture processed by the Vertical Blur
-            glBindTexture(GL_TEXTURE_2D, fxTextures[2]);
+            glBindTexture(GL_TEXTURE_2D, fxTextures[1]);
             glDrawElements(GL_TRIANGLES, quad_triangleCount * 3, GL_UNSIGNED_INT, (void*)0);
 
             /* -------------- COC -------------- */
@@ -1195,7 +1178,7 @@ int main( int argc, char **argv )
             glUseProgram(COCProgramObject);
 
             // Write into Circle of Confusion Texture
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 , GL_TEXTURE_2D, fxTextures[2], 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 , GL_TEXTURE_2D, fxTextures[1], 0);
             // Clear the content of  texture
             glClear(GL_COLOR_BUFFER_BIT);
             glActiveTexture(GL_TEXTURE0);
@@ -1213,31 +1196,43 @@ int main( int argc, char **argv )
             glClear(GL_COLOR_BUFFER_BIT);
             
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, fxTextures[1]); // Color
+            glBindTexture(GL_TEXTURE_2D, fxTextures[0]); // Color
             glActiveTexture(GL_TEXTURE1);
-            glBindTexture(GL_TEXTURE_2D, fxTextures[2]); // CoC
+            glBindTexture(GL_TEXTURE_2D, fxTextures[1]); // CoC
             glActiveTexture(GL_TEXTURE2);
-            glBindTexture(GL_TEXTURE_2D, fxTextures[0]); // Blur
+            glBindTexture(GL_TEXTURE_2D, fxTextures[2]); // Blur
             glDrawElements(GL_TRIANGLES, quad_triangleCount * 3, GL_UNSIGNED_INT, (void*)0);
         }
 
 
         /* -------------- GAMMA -------------- */
         glUseProgram(gammaProgramObject);
+
         glActiveTexture(GL_TEXTURE0);
+
         //select the texture to read from
         if(blurSampleCount)
             glBindTexture(GL_TEXTURE_2D, fxTextures[3]);
         else
-            glBindTexture(GL_TEXTURE_2D, fxTextures[1]);
+            glBindTexture(GL_TEXTURE_2D, fxTextures[0]);
         //select the texture to write in
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fxTextures[0], 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fxTextures[1], 0);
         //clear the buffer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         //draw the gamma-treated image
         glDrawElements(GL_TRIANGLES, quad_triangleCount * 3, GL_UNSIGNED_INT, (void*)0);
 
+        if(blackFade){
+            glUseProgram(FadeProgramObject);
+            glBindTexture(GL_TEXTURE_2D, fxTextures[1]);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fxTextures[3], 0);
+            //clear the buffer
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            //draw the faded image
+            glDrawElements(GL_TRIANGLES, quad_triangleCount * 3, GL_UNSIGNED_INT, (void*)0);
+        }
+        
         // Default framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         // Full screen viewport
@@ -1250,7 +1245,10 @@ int main( int argc, char **argv )
         // Display
         glUseProgram(blitProgramObject);
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, fxTextures[0]);
+        if(blackFade)
+            glBindTexture(GL_TEXTURE_2D, fxTextures[3]);
+        else
+            glBindTexture(GL_TEXTURE_2D, fxTextures[1]);
         glDrawElements(GL_TRIANGLES, quad_triangleCount * 3, GL_UNSIGNED_INT, (void*)0);
 
         glDisable(GL_BLEND);
@@ -1286,53 +1284,17 @@ int main( int argc, char **argv )
             // Viewport 
             glViewport( width/4 * 3, 0, width/4, height/4 );
             // Bind texture
-            glBindTexture(GL_TEXTURE_2D, fxTextures[2]);
+            glBindTexture(GL_TEXTURE_2D, fxTextures[1]);
             // Draw quad
             glDrawElements(GL_TRIANGLES, quad_triangleCount * 3, GL_UNSIGNED_INT, (void*)0);
         }
 
         if (guiStates.display)
         {
-            // // Draw UI
-            // glDisable(GL_DEPTH_TEST);
-            // glEnable(GL_BLEND);
-            // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-            // glViewport(0, 0, width, height);
-
-            // unsigned char mbut = 0;
-            // int mscroll = 0;
-            // double mousex; double mousey;
-            // glfwGetCursorPos(window, &mousex, &mousey);
-            // mousex*=DPI;
-            // mousey*=DPI;
-            // mousey = height - mousey;
-
-            // if( leftButton == GLFW_PRESS )
-            //     mbut |= IMGUI_MBUT_LEFT;
-
-            // imguiBeginFrame(mousex, mousey, mbut, mscroll);
-            // char lineBuffer[512];
-            // imguiBeginScrollArea("aogl", width - 210, height - 310, 200, 300, &guiStates.scroll);
-            // sprintf(lineBuffer, "FPS %f", fps);
-            // imguiLabel(lineBuffer);
-            // imguiSlider("Speed", &speed, 0.0, 1.0, 0.01);
-            // imguiSlider("Point Lights", &pointLightCount, 0.0, 100.0, 1);
-            // imguiSlider("Directional Lights", &directionalLightCount, 0.0, 100.0, 1);
-            // imguiSlider("Spot Lights", &spotLightCount, 1.0, 16.0, 1);
-
-            // imguiEndScrollArea();
-            // imguiEndFrame();
-            // imguiRenderGLDraw(width, height);
-
-            // glDisable(GL_BLEND);
 
             ImGui::SetNextWindowSize(ImVec2(200,100), ImGuiSetCond_FirstUseEver);
             ImGui::Begin("aogl");
-            //ImGui::SliderFloat("dummy", &dummySlider, 0.0f, 1.0f);
-            //ImGui::ColorEdit3("clear color", clearColor);
-            //ImGui::DragInt("Spotlights", &spotLightCount, 0.1, 1, 16);
             ImGui::SliderFloat("Gamma", &gamma, 0.1, 6.0);
-            ImGui::SliderFloat("Sobel Factor", &sobelFactor, 0.0, 1.0);
             ImGui::SliderInt("blur Sample count", &blurSampleCount, 0, 20);
             ImGui::SliderFloat("Focus near", &focus.x, 0.0, 15.0);
             ImGui::SliderFloat("Focus center", &focus.y, 0.0, 15.0);
@@ -1345,6 +1307,9 @@ int main( int argc, char **argv )
 
             ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
+            ImGui::Text("Phi %.1f; theta %.1f", camera.phi, camera.theta);
+
+
             ImGui::End();
             ImGui::Render();
         }
@@ -1355,8 +1320,8 @@ int main( int argc, char **argv )
         glfwSwapBuffers(window);
         glfwPollEvents();
 
-        double newTime = glfwGetTime();
-        fps = 1.f/ (newTime - t);
+        //double newTime = glfwGetTime();
+        //fps = 1.f/ (newTime - t);
     } // Check if the ESC key was pressed
     while( glfwGetKey( window, GLFW_KEY_ESCAPE ) != GLFW_PRESS );
 
@@ -1461,7 +1426,7 @@ GLuint compile_shader_from_file(GLenum shaderType, const char * path)
     long fileSize = ftell ( shaderFileDesc );
     rewind ( shaderFileDesc );
     char * buffer = new char[fileSize + 1];
-    size_t t = fread( buffer, 1, fileSize, shaderFileDesc );
+    long t = fread( buffer, 1, fileSize, shaderFileDesc );
     buffer[fileSize] = '\0';
     GLuint shaderObject = compile_shader(shaderType, buffer, fileSize );
     delete[] buffer;
@@ -1513,8 +1478,8 @@ void camera_compute(Camera & c)
 
 void camera_defaults(Camera & c)
 {
-    c.phi = 3.14/2.f;
-    c.theta = 3.14/2.f;
+    c.phi = 1.0;
+    c.theta = 2.3;
     c.radius = 10.f;
     camera_compute(c);
 }
